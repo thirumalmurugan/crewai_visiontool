@@ -19,7 +19,29 @@ graph TD
     B --> H[User Output]
 ```
 
-## 2. Core Tech Stack
+## 2. Agentic AI Patterns Used
+
+This project implements several key **Agentic AI** design patterns to create a robust and autonomous system:
+
+### 2.1 ReAct (Reason + Act)
+The core loop of our agent follows the **ReAct** pattern. Instead of just generating text, the agent:
+1.  **Reasons** about the user request ("I need to see what's in this image").
+2.  **Acts** by calling the `YoloTool`.
+3.  **Observes** the output from the tool ("Found 2 persons").
+4.  **Reasons** again to synthesize the final answer.
+
+### 2.2 Role-Based Persona
+By defining a specialized **Role** (Object Detection Analyst) and **Backstory** in `agents.yaml`, we use the **Persona Pattern**. This constrains the LLM's vast knowledge-base to a specific domain, reducing hallucinations and improving the professional tone of the reports.
+
+### 2.3 Tool-Augmented Generation (TAG)
+While similar to RAG (Retrieval Augmented Generation), this project uses **TAG**. The agent is augmented with a dynamic capability (computer vision) that it doesn't possess natively. It treats the YOLO model as an external "sense" to gather real-world data.
+
+### 2.4 Guardrail & Termination Patterns
+Small local models can sometimes "loop" or get stuck in a logic trap. We implement **Control Patterns**:
+- **`max_iter`**: A hard stop to ensure the agent doesn't consume infinite resources.
+- **Explicit Termination**: Prompt engineering that instructs the agent to "stop after getting tool results," which is a form of state-machine control for agentic workflows.
+
+## 3. Core Tech Stack
 
 ### AI Frameworks
 - **[crewAI](https://crewai.com)**: Orchestrates the agentic workflow and task management.
