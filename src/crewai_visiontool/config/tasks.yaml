@@ -1,0 +1,10 @@
+detect_objects_task:
+  description: >
+    Analyze the image provided at {image_path}.
+    Use the Object Detection Tool to identify all objects in the image.
+  expected_output: >
+    A clear summary report of the objects found in the image. 
+    The report must list each object name and its corresponding count based 
+    EXCLUSIVELY on the tool's output.
+  agent: object_analyst
+

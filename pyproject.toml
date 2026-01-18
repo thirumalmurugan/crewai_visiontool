@@ -1,0 +1,32 @@
+[project]
+name = "crewai_visiontool"
+version = "0.1.0"
+description = "crewai_visiontool using crewAI"
+authors = [{ name = "Thirumal murugan Palaniapillai", email = "thirumal.murugan@gmail.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]==1.8.0",
+    "openai==1.83.0",
+    "litellm>=1.50.0",
+    "ultralytics>=8.0.0",
+    "opencv-python-headless>=4.0.0",
+    "fastapi",
+    "fastapi-sso",
+    "apscheduler",
+    "email-validator"
+]
+
+[project.scripts]
+crewai_visiontool = "crewai_visiontool.main:run"
+run_crew = "crewai_visiontool.main:run"
+train = "crewai_visiontool.main:train"
+replay = "crewai_visiontool.main:replay"
+test = "crewai_visiontool.main:test"
+run_with_trigger = "crewai_visiontool.main:run_with_trigger"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
