@@ -19,6 +19,32 @@ graph TD
     B --> H[User Output]
 ```
 
+## 1. Detailed Component Architecture
+
+This diagram shows the relationship between the project's internal logic and external service providers.
+
+```mermaid
+graph LR
+    subgraph "Local Environment"
+        subgraph "CrewAI Logic (Python)"
+            MA[main.py] --> CR[crew.py]
+            CR --> AG[Agent: Object Detection Analyst]
+            CR --> TA[Task: detect_objects_task]
+            AG --> YT[YoloTool.py]
+        end
+        
+        subgraph "External Models & Binaries"
+            YT --> YO[YOLOv8 Engine]
+            YO -.-> |".pt weights"| YM[(Local FS)]
+            AG --> OL[Ollama Server]
+            OL -.-> |"Manifest/Blobs"| LM[(Local FS)]
+        end
+    end
+    
+    UI[User CLI] --> MA
+    MA --> |Image Results| UI
+```
+
 ## 2. Agentic AI Patterns Used
 
 This project implements several key **Agentic AI** design patterns to create a robust and autonomous system:
