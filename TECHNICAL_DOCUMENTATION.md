@@ -53,26 +53,68 @@ The system follows a sequential execution pattern:
     - It uses the local Llama model to format these counts into a professional, context-aware report based on its "backstory" defined in `agents.yaml`.
 5. **Safety Loop**: The `max_iter=3` safety valve ensures that if the local model gets confused, it is forced to provide a final answer rather than looping.
 
-## 4. Key Implementation Details
+## 4. Sequence Diagram: Data Flow
 
-### Model Caching in `YoloTool`
-To avoid the ~1-2 second overhead of loading the YOLO `.pt` file for every task, we implemented a class-level cache:
-```python
-class YoloTool(BaseTool):
-    _model = None  # Class-level cache
-    
-    def _run(self, image_path: str) -> str:
-        if YoloTool._model is None:
-            YoloTool._model = YOLO(os.getenv("YOLO_MODEL", "yolov8n.pt"))
-        # ... inference logic ...
+This diagram illustrates the step-by-step sequence of events when a task is executed.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Main as main.py
+    participant Crew as crew.py
+    participant Tool as YoloTool.py
+    participant Model as YOLOv8
+    participant LLM as Llama 3.2 (Ollama)
+
+    User->>Main: python -m ... <image_path>
+    Main->>Crew: kickoff(inputs)
+    Crew->>LLM: Analyze Task
+    LLM-->>Crew: Need to use Object Detection Tool
+    Crew->>Tool: _run(image_path)
+    alt Model not cached
+        Tool->>Model: Load .pt file
+    end
+    Tool->>Model: Run Inference
+    Model-->>Tool: Bounding Boxes / Class IDs
+    Tool-->>Crew: JSON String of counts
+    Crew->>LLM: Here are the counts. Draft report.
+    LLM-->>Crew: "Found 2 persons..."
+    Crew-->>Main: Final Output
+    Main->>User: Print Results
 ```
 
-### Environment Configuration
-The system is highly configurable via `.env`:
-- `YOLO_MODEL`: Allows switching between `yolov8n.pt` (faster) or `yolov8x.pt` (more accurate).
-- `LITELLM_LOG=OFF`: Crucial for disabling verbose node.js-style logs in the Python console.
+## 5. Code Deep Dive
 
-## 5. Directory Structure
+### 5.1. Important Imports
+
+Understanding the core building blocks:
+
+| Import | Source | Purpose |
+| :--- | :--- | :--- |
+| `from crewai import Agent, Crew, Process, Task` | `crewai` | Primary orchestration classes for defining AI entities and workflows. |
+| `from crewai.project import CrewBase, agent, crew, task` | `crewai` | Decorators and base class that enable the **YAML-to-Code** linking system. |
+| `from crewai_tools import BaseTool` | `crewai_tools` | The standard interface for creating custom tools that Agents can understand. |
+| `from ultralytics import YOLO` | `ultralytics` | The engine for loading and running the YOLO vision models. |
+| `from crewai import LLM` | `crewai` | Provides a unified interface to connect to any LLM provider (Ollama in our case). |
+
+### 5.2. Decorators & Logic
+
+The project uses CrewAI's modern **Decorated Style**:
+
+- **`@CrewBase`**: Marks the class as a factory for creating agents and tasks. It handles the automatic loading of `config/agents.yaml` and `config/tasks.yaml`.
+- **`@agent`**: Dynamically creates an `Agent` instance using the YAML configuration. It allows injecting tools like `YoloTool()` directly into the agent.
+- **`@task`**: Links a task description from YAML to a specific agent.
+- **`@crew`**: Assembles all defined agents and tasks into a `Crew` instance with a specific `Process` (defaulting to `sequential`).
+
+### 5.3. YoloTool Implementation
+
+The `YoloTool` is the bridge between the AI's "brain" and its "eyes":
+
+1.  **Environment Sync**: It uses `load_dotenv()` inside `_run` to ensure it can access `YOLO_MODEL` from the `.env` file even if called in different contexts.
+2.  **Data Reduction**: Raw YOLO output is a complex object containing coordinates, confidences, and masks. The tool simplifies this into a **String-based Summary** because LLMs process text much better than raw coordinate arrays.
+3.  **Counter Logic**: Uses Python's `collections.Counter` to quickly aggregate detections, ensuring the LLM gets a clear "What and How Many" summary.
+
+## 6. Directory Structure
 ```text
 crewai_visiontool/
 ├── src/
@@ -84,3 +126,10 @@ crewai_visiontool/
 ├── .env                     # Configuration
 └── pyproject.toml           # Strict dependency pinning
 ```
+
+## 7. Configuration Strategy
+
+The project uses a **Local-First** strategy:
+- **Privacy**: No image data leaves your local network.
+- **Zero Cost**: Uses free, open-source models (`yolov8n`, `llama3.2`).
+- **Control**: All timeouts, iteration limits, and temperatures are configured in `crew.py`.
